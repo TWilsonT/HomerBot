@@ -6,12 +6,14 @@ import re
 import time
 
 ## Constants and Global Variables
-TEAM_SHORT_NAME = "TOR"
-TEAM_NAME = "Blue Jays"
+TEAM_NAME = "Toronto Blue Jays"
 HOMERUN_GROUP = 2
 PLAYER_GROUP = 0
-homerunData = []
 WEBSITE_URL_BASE = "http://www.cbssports.com/"
+HOMERUN_CALL_FILE = "callSheet.txt"
+
+homerunData = []
+checkNumber = 0
 
 api = twitter.Api(consumer_key='skESbPn16O3VfJQFyH33DnrYI',
                       consumer_secret='a3Ke5lhjSA28TmQ3bLaeZGUnyM74EB6kYGdrU7VdTlcZKQiAcY',
@@ -23,6 +25,9 @@ try:
 except:
 	print "Could Not Connect to Twitter, Exiting Program"
 	sys.exit()
+
+def getHomeRunCallText(file):
+	pass
 
 def postHomeRunToTwitter(playerData):
 	playerDataRegex = re.compile('^(\w+\. \w*) \((\d+)\)*$')
@@ -51,39 +56,48 @@ def getBoxScoreURL(url):
 	urlText = re.match(boxScoreRegex, urlText)
 	urlText = urlText.group(1)
 
-	print WEBSITE_URL_BASE + urlText
+	return WEBSITE_URL_BASE + urlText
 
 
-scoresHomePage = "http://www.cbssports.com/mlb/scoreboard/"
-boxScoreURL = getBoxScoreURL(scoresHomePage)
+scoresHomePage = "http://www.espn.com/mlb/scoreboard"
+#boxScoreURL = getBoxScoreURL(scoresHomePage)
+boxScoreURL = "http://www.espn.com/mlb/boxscore?gameId=370707116"
 
-while (False):
+
+## get the home run data for both teams (want to pair this expression down)
+homerunRegex = "(.|\n)*" + TEAM_NAME + ".*?BATTING.*?HR:.*?>(.*?)<(.|\n)*"
+homerunRegex = re.compile(homerunRegex)
+
+while (True):
 	rawHTML = urllib2.urlopen(boxScoreURL).read()
 
-	## get the home run data for both teams (want to pair this expression down)
-	homerunRegex = re.compile("((.|\n)*)HR: </span\><!-- react-text: 121 -->((.|\n)*)<!-- /react-text --></span></li>(.|\n)*")
-
 	result = re.match(homerunRegex, rawHTML)
-	result = result.groups()
 
-	homeRunText = result[HOMERUN_GROUP]
+	if result != None:	
+		print "here"
+		result = result.groups()
+		print result
+		homeRunText = result[HOMERUN_GROUP]
 
-	## narrow down to just the team we care about
-	# create the regular expression
-	teamNameRegex = TEAM_SHORT_NAME + " -(.*), \w\w\w -.*"
-	teamNameRegex = re.compile(teamNameRegex)
+		## narrow down to just the team we care about
+		# create the regular expression
+		teamNameRegex = TEAM_SHORT_NAME + " -(.*), \w\w\w -.*"
+		teamNameRegex = re.compile(teamNameRegex)
 
-	# extract the home run info
-	result = re.match(teamNameRegex, homeRunText)
-	result = result.groups()
-	playerText = result[PLAYER_GROUP]
+		# extract the home run info
+		result = re.match(teamNameRegex, homeRunText)
+		result = result.groups()
+		playerText = result[PLAYER_GROUP]
 
-	# get the individual player data
-	playerData = playerText.split(",")
-	for player in range(0, len(playerData)):
-		playerData[player] = playerData[player].strip()
-		if playerData[player] not in homerunData:
-			postHomeRunToTwitter(playerData[player])
-			homerunData.append(playerData[player])
+		# get the individual player data
+		playerData = playerText.split(",")
+		for player in range(0, len(playerData)):
+			playerData[player] = playerData[player].strip()
+			if playerData[player] not in homerunData:
+				postHomeRunToTwitter(playerData[player])
+				homerunData.append(playerData[player])
+
+	print "check number: " + str(checkNumber) + "\nChecking again in 5 minutes"
+	checkNumber += 1
 
 	time.sleep(300)
